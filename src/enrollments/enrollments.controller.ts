@@ -10,7 +10,7 @@ import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Patch, Param } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';

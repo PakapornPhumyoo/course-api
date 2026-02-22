@@ -6,12 +6,14 @@ import {
 } from './schemas/enrollment.schema';
 import { EnrollmentsService } from './enrollments.service';
 import { EnrollmentsController } from './enrollments.controller';
+import { CertificatesModule } from '../certificates/certificates.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Enrollment.name, schema: EnrollmentSchema },
     ]),
+    CertificatesModule, // ✅ ต้องมี
   ],
   controllers: [EnrollmentsController],
   providers: [EnrollmentsService],

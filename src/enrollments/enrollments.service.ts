@@ -1,24 +1,30 @@
 import {
   Injectable,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Enrollment, EnrollmentDocument } from './schemas/enrollment.schema';
-
+import {
+  Enrollment,
+  EnrollmentDocument,
+} from './schemas/enrollment.schema';
+import { CertificatesService } from '../certificates/certificates.service';
 
 @Injectable()
 export class EnrollmentsService {
   constructor(
     @InjectModel(Enrollment.name)
     private enrollmentModel: Model<EnrollmentDocument>,
+
+    // 🔥 เพิ่มตัวนี้
+    private certificatesService: CertificatesService,
   ) { }
 
   // ==============================
   // CREATE ENROLLMENT
   // ==============================
   async create(userId: string, courseId: string) {
-    // 🔥 1. เช็คว่าลงทะเบียนซ้ำไหม
     const existingEnrollment = await this.enrollmentModel.findOne({
       user: userId,
       course: courseId,
@@ -30,7 +36,6 @@ export class EnrollmentsService {
       );
     }
 
-    // 🔥 2. สร้าง enrollment ใหม่
     const enrollment = new this.enrollmentModel({
       user: userId,
       course: courseId,
@@ -42,12 +47,12 @@ export class EnrollmentsService {
   }
 
   // ==============================
-  // GET MY ENROLLMENTS (populate)
+  // GET MY ENROLLMENTS
   // ==============================
   async findMyEnrollments(userId: string) {
     return this.enrollmentModel
       .find({ user: userId })
-      .populate('course') // 🔥 ดึงข้อมูล course มาเลย
+      .populate('course')
       .exec();
   }
 
@@ -69,56 +74,64 @@ export class EnrollmentsService {
     const enrollment = await this.enrollmentModel.findById(id);
 
     if (!enrollment) {
-      throw new Error('Enrollment not found');
+      throw new NotFoundException('Enrollment not found');
     }
 
     enrollment.status = status;
 
-    // 🔥 ถ้ากลับไป pending หรือ rejected ให้ reset progress
+    // reset progress ถ้าไม่ผ่าน
     if (status === 'pending' || status === 'rejected') {
       enrollment.progress = 0;
     }
 
-    // 🔥 ถ้า completed ต้อง progress = 100
+    // ถ้า admin กด completed เอง
     if (status === 'completed') {
       enrollment.progress = 100;
+
+      // 🔥 สร้าง certificate อัตโนมัติ
+      await this.certificatesService.createCertificate(
+        enrollment.user.toString(),
+        enrollment.course.toString(),
+      );
     }
 
     return enrollment.save();
   }
 
   // ==============================
-  // UPDATE PROGRESS (Admin)
+  // UPDATE PROGRESS
   // ==============================
   async updateProgress(id: string, progress: number) {
     const enrollment = await this.enrollmentModel.findById(id);
 
     if (!enrollment) {
-      throw new Error('Enrollment not found');
+      throw new NotFoundException('Enrollment not found');
     }
 
-    // 🔒 ต้องอนุมัติก่อนถึงจะอัปเดต progress ได้
-    if (enrollment.status !== 'approved' && enrollment.status !== 'completed') {
+    if (
+      enrollment.status !== 'approved' &&
+      enrollment.status !== 'completed'
+    ) {
       throw new BadRequestException(
         'Cannot update progress. Enrollment not approved.',
       );
     }
 
-    // 🔢 เช็คช่วง 0-100
     if (progress < 0 || progress > 100) {
-      throw new Error('Progress must be between 0 and 100');
+      throw new BadRequestException(
+        'Progress must be between 0 and 100',
+      );
     }
 
     enrollment.progress = progress;
 
-    // 🎓 Auto complete logic
-    if (progress === 100) {
+    if (progress === 100 && enrollment.status !== 'completed') {
       enrollment.status = 'completed';
-    }
 
-    // 🔁 ถ้าเคย completed แล้วลด progress ลง
-    if (progress < 100 && enrollment.status === 'completed') {
-      enrollment.status = 'approved';
+      await this.certificatesService.createCertificate(
+        enrollment.user.toString(),
+        enrollment.course.toString(),
+      );
     }
 
     return enrollment.save();
