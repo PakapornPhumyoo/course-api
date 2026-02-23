@@ -25,6 +25,7 @@ export class EnrollmentsController {
   /**
    * สมัครเรียน (User ต้อง Login)
    */
+
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(
@@ -98,8 +99,14 @@ export class EnrollmentsController {
   }
 
   /**
-   * Admin อัปเดต progress
-   * ถ้า progress = 100 ระบบจะสร้าง certificate อัตโนมัติ
+   * User ทำเครื่องหมายว่าเรียนบทเรียนนี้แล้ว
+   * จะอัพเดต progress และ status ของ enrollment
+   * ถ้าเรียนครบ → status = completed
+   * ถ้าไม่ครบ → status = in-progress
+   * ใช้ JwtAuthGuard ป้องกัน
+   * ตรวจสอบว่า user นี้เป็นเจ้าของ enrollment นี้เท่านั้น
+   * ถ้าไม่ใช่เจ้าของ → throw UnauthorizedException
+   * ถ้า enrollment ไม่พบ → throw NotFoundException
    */
 
   @Patch(':enrollmentId/lessons/:lessonId/complete')
