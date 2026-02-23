@@ -75,4 +75,11 @@ export class UsersService {
       new: true,
     }).select('-password');
   }
+
+  // ==========================
+  // DELETE ME (SOFT DELETE)
+  // ==========================
+  async deleteMe(id: string) {
+    return this.userModel.findByIdAndDelete(id);
+  }
 }

@@ -16,7 +16,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   // =====================================================
   // SIGNUP
@@ -24,7 +24,8 @@ export class AuthService {
   async signup(dto: SignupDto) {
     const existingUser = await this.usersService.findByEmail(dto.email);
 
-    if (existingUser) {
+    // 🔥 ป้องกันสมัครซ้ำ
+    if (existingUser && !existingUser.isDeleted) {
       throw new BadRequestException('Email already exists');
     }
 
@@ -43,13 +44,19 @@ export class AuthService {
   }
 
   // =====================================================
-  // SIGNIN (สร้าง Access + Refresh)
+  // SIGNIN
   // =====================================================
   async signin(dto: SigninDto) {
     const user = await this.usersService.findByEmail(dto.email);
 
+    // ❌ ไม่พบ user
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // ❌ user ถูกลบแล้ว
+    if (user.isDeleted) {
+      throw new UnauthorizedException('Account has been deleted');
     }
 
     const passwordMatch = await bcrypt.compare(
@@ -81,7 +88,7 @@ export class AuthService {
   }
 
   // =====================================================
-  // REFRESH TOKEN (STEP 6 สำคัญ)
+  // REFRESH TOKEN
   // =====================================================
   async refresh(refreshToken: string) {
     if (!refreshToken) {
@@ -89,26 +96,27 @@ export class AuthService {
     }
 
     try {
-      // 1️⃣ verify refresh token
       const payload = await this.jwtService.verifyAsync(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
 
-      // 2️⃣ สร้าง access token ใหม่
+      // 🔥 เช็คว่า user ยังมีอยู่ และยังไม่ถูกลบ
+      const user = await this.usersService.findById(payload.sub);
+
+      if (!user || user.isDeleted) {
+        throw new UnauthorizedException('Account no longer exists');
+      }
+
       const newAccessToken = await this.jwtService.signAsync(
         {
-          sub: payload.sub,
-          email: payload.email,
-          role: payload.role,
+          sub: user._id,
+          email: user.email,
+          role: user.role,
         },
         {
-          secret:
-            this.configService.get<string>('JWT_SECRET') ||
-            'default_secret',
-
+          secret: this.configService.get<string>('JWT_SECRET'),
           expiresIn:
-            (this.configService.get<string>('JWT_EXPIRES') as any) ||
-            '15m',
+            (this.configService.get<string>('JWT_EXPIRES') as any) || '15m',
         },
       );
 
