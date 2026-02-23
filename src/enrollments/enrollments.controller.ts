@@ -5,11 +5,12 @@ import {
   UseGuards,
   Req,
   Get,
+  Patch,
+  Param,
 } from '@nestjs/common';
 import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Patch, Param } from '@nestjs/common';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UpdateStatusDto } from './dto/update-status.dto';
@@ -19,69 +20,103 @@ import { UpdateProgressDto } from './dto/update-progress.dto';
 export class EnrollmentsController {
   constructor(
     private readonly enrollmentsService: EnrollmentsService,
-  ) { }
+  ) {}
 
-  // สมัครเรียน (ต้อง login)
+  /**
+   * สมัครเรียน (User ต้อง Login)
+   */
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(
     @Body() dto: CreateEnrollmentDto,
     @Req() req: any,
   ) {
-    return this.enrollmentsService.create(
-      req.user.userId, // ✅ แก้จาก sub → userId
+    const enrollment = await this.enrollmentsService.create(
+      req.user.userId,
       dto.courseId,
     );
+
+    return {
+      message: 'Enrollment created successfully',
+      data: enrollment,
+    };
   }
 
-  // ดู enrollment ของตัวเอง
+  /**
+   * ดูรายการสมัครของตัวเอง
+   */
   @Get('my')
   @UseGuards(JwtAuthGuard)
   async findMy(@Req() req: any) {
-    return this.enrollmentsService.findMyEnrollments(
-      req.user.userId, // ✅ แก้จาก sub → userId
-    );
+    const enrollments =
+      await this.enrollmentsService.findMyEnrollments(
+        req.user.userId,
+      );
+
+    return {
+      message: 'My enrollments fetched successfully',
+      data: enrollments,
+    };
   }
 
-  // ==============================
-  // ADMIN: ดูทั้งหมด
-  // ==============================
+  /**
+   * Admin ดูทั้งหมด
+   */
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  findAll() {
-    return this.enrollmentsService.findAll();
+  async findAll() {
+    const enrollments =
+      await this.enrollmentsService.findAll();
+
+    return {
+      message: 'All enrollments fetched successfully',
+      data: enrollments,
+    };
   }
 
-  // ==============================
-  // ADMIN: เปลี่ยนสถานะ
-  // ==============================
+  /**
+   * Admin เปลี่ยนสถานะ enrollment
+   */
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  updateStatus(
+  async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateStatusDto,
   ) {
-    return this.enrollmentsService.updateStatus(
-      id,
-      dto.status,
-    );
+    const result =
+      await this.enrollmentsService.updateStatus(
+        id,
+        dto.status,
+      );
+
+    return {
+      message: 'Enrollment status updated successfully',
+      data: result,
+    };
   }
 
-  // ==============================
-  // ADMIN: อัปเดต progress
-  // ==============================
+  /**
+   * Admin อัปเดต progress
+   * ถ้า progress = 100 ระบบจะสร้าง certificate อัตโนมัติ
+   */
   @Patch(':id/progress')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  updateProgress(
+  async updateProgress(
     @Param('id') id: string,
     @Body() dto: UpdateProgressDto,
   ) {
-    return this.enrollmentsService.updateProgress(
-      id,
-      dto.progress,
-    );
+    const result =
+      await this.enrollmentsService.updateProgress(
+        id,
+        dto.progress,
+      );
+
+    return {
+      message: 'Enrollment progress updated successfully',
+      data: result,
+    };
   }
 }
