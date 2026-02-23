@@ -24,6 +24,10 @@ export class Enrollment {
 
   @Prop({ default: 0 })
   progress: number;
+
+  // ✅ เพิ่มอันนี้
+  @Prop({ type: [String], default: [] })
+  completedLessons: string[];
 }
 
 export const EnrollmentSchema =

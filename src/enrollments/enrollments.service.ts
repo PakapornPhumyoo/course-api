@@ -9,6 +9,7 @@ import {
   Enrollment,
   EnrollmentDocument,
 } from './schemas/enrollment.schema';
+import { Course, CourseDocument } from '../courses/schemas/course.schema';
 import { CertificatesService } from '../certificates/certificates.service';
 
 @Injectable()
@@ -17,9 +18,11 @@ export class EnrollmentsService {
     @InjectModel(Enrollment.name)
     private enrollmentModel: Model<EnrollmentDocument>,
 
-    // 🔥 เพิ่มตัวนี้
+    @InjectModel(Course.name)
+    private courseModel: Model<CourseDocument>,
+
     private certificatesService: CertificatesService,
-  ) { }
+  ) {}
 
   // ==============================
   // CREATE ENROLLMENT
@@ -41,7 +44,81 @@ export class EnrollmentsService {
       course: courseId,
       status: 'pending',
       progress: 0,
+      completedLessons: [],
     });
+
+    return enrollment.save();
+  }
+
+  // ==============================
+  // COMPLETE LESSON (🔥 ใหม่)
+  // ==============================
+  async completeLesson(
+    userId: string,
+    courseId: string,
+    lessonId: string,
+  ) {
+    const enrollment = await this.enrollmentModel.findOne({
+      user: userId,
+      course: courseId,
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    if (
+      enrollment.status !== 'approved' &&
+      enrollment.status !== 'completed'
+    ) {
+      throw new BadRequestException(
+        'Enrollment not approved',
+      );
+    }
+
+    // ❌ กันกดซ้ำ
+    if (enrollment.completedLessons.includes(lessonId)) {
+      throw new BadRequestException(
+        'Lesson already completed',
+      );
+    }
+
+    // หา course
+    const course = await this.courseModel.findById(courseId);
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    if (!course.lessons.includes(lessonId)) {
+      throw new BadRequestException(
+        'Invalid lesson for this course',
+      );
+    }
+
+    // เพิ่ม lesson
+    enrollment.completedLessons.push(lessonId);
+
+    // คำนวณ progress
+    const totalLessons = course.lessons.length;
+    const completedCount = enrollment.completedLessons.length;
+
+    enrollment.progress = Math.round(
+      (completedCount / totalLessons) * 100,
+    );
+
+    // ถ้าครบ 100%
+    if (
+      enrollment.progress === 100 &&
+      enrollment.status !== 'completed'
+    ) {
+      enrollment.status = 'completed';
+
+      await this.certificatesService.createCertificate(
+        enrollment.user.toString(),
+        enrollment.course.toString(),
+      );
+    }
 
     return enrollment.save();
   }
@@ -79,54 +156,13 @@ export class EnrollmentsService {
 
     enrollment.status = status;
 
-    // reset progress ถ้าไม่ผ่าน
     if (status === 'pending' || status === 'rejected') {
       enrollment.progress = 0;
+      enrollment.completedLessons = [];
     }
 
-    // ถ้า admin กด completed เอง
     if (status === 'completed') {
       enrollment.progress = 100;
-
-      // 🔥 สร้าง certificate อัตโนมัติ
-      await this.certificatesService.createCertificate(
-        enrollment.user.toString(),
-        enrollment.course.toString(),
-      );
-    }
-
-    return enrollment.save();
-  }
-
-  // ==============================
-  // UPDATE PROGRESS
-  // ==============================
-  async updateProgress(id: string, progress: number) {
-    const enrollment = await this.enrollmentModel.findById(id);
-
-    if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
-    }
-
-    if (
-      enrollment.status !== 'approved' &&
-      enrollment.status !== 'completed'
-    ) {
-      throw new BadRequestException(
-        'Cannot update progress. Enrollment not approved.',
-      );
-    }
-
-    if (progress < 0 || progress > 100) {
-      throw new BadRequestException(
-        'Progress must be between 0 and 100',
-      );
-    }
-
-    enrollment.progress = progress;
-
-    if (progress === 100 && enrollment.status !== 'completed') {
-      enrollment.status = 'completed';
 
       await this.certificatesService.createCertificate(
         enrollment.user.toString(),

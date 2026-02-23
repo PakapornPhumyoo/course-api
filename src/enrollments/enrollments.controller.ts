@@ -101,22 +101,6 @@ export class EnrollmentsController {
    * Admin อัปเดต progress
    * ถ้า progress = 100 ระบบจะสร้าง certificate อัตโนมัติ
    */
-  @Patch(':id/progress')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  async updateProgress(
-    @Param('id') id: string,
-    @Body() dto: UpdateProgressDto,
-  ) {
-    const result =
-      await this.enrollmentsService.updateProgress(
-        id,
-        dto.progress,
-      );
-
-    return {
-      message: 'Enrollment progress updated successfully',
-      data: result,
-    };
-  }
+  
+  
 }
