@@ -9,8 +9,6 @@ import {
 import { EnrollmentsService } from './enrollments.service';
 import { EnrollmentsController } from './enrollments.controller';
 
-import { CertificatesModule } from '../certificates/certificates.module';
-
 // 🔥 เพิ่ม import นี้
 import { Course, CourseSchema } from '../courses/schemas/course.schema';
 
@@ -22,11 +20,9 @@ import { Course, CourseSchema } from '../courses/schemas/course.schema';
       // 🔥 เพิ่มตัวนี้เข้าไป
       { name: Course.name, schema: CourseSchema },
     ]),
-
-    CertificatesModule, // ✅ ต้องมี
   ],
   controllers: [EnrollmentsController],
   providers: [EnrollmentsService],
   exports: [EnrollmentsService],
 })
-export class EnrollmentsModule {}
+export class EnrollmentsModule { }

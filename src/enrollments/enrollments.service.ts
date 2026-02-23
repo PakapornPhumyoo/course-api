@@ -14,7 +14,6 @@ import {
   Course,
   CourseDocument,
 } from '../courses/schemas/course.schema';
-import { CertificatesService } from '../certificates/certificates.service';
 
 @Injectable()
 export class EnrollmentsService {
@@ -24,8 +23,6 @@ export class EnrollmentsService {
 
     @InjectModel(Course.name)
     private courseModel: Model<CourseDocument>,
-
-    private certificatesService: CertificatesService,
   ) {}
 
   // ==============================
@@ -55,14 +52,13 @@ export class EnrollmentsService {
   }
 
   // ==============================
-  // COMPLETE LESSON (ใช้ enrollmentId)
+  // COMPLETE LESSON
   // ==============================
   async updateProgress(
     enrollmentId: string,
     lessonId: string,
     userId: string,
   ) {
-    // 👇 populate แบบ generic เพื่อให้ TS รู้ว่าเป็น Course
     const enrollment = await this.enrollmentModel
       .findById(enrollmentId)
       .populate<{ course: Course }>('course');
@@ -86,12 +82,10 @@ export class EnrollmentsService {
       );
     }
 
-    // กัน undefined
     if (!enrollment.completedLessons) {
       enrollment.completedLessons = [];
     }
 
-    // กันกดซ้ำ
     if (enrollment.completedLessons.includes(lessonId)) {
       throw new BadRequestException(
         'Lesson already completed',
@@ -115,7 +109,7 @@ export class EnrollmentsService {
     // เพิ่ม lesson
     enrollment.completedLessons.push(lessonId);
 
-    // ===== คำนวณ progress =====
+    // คำนวณ progress
     const totalLessons = course.lessons.length;
     const completedCount = enrollment.completedLessons.length;
 
@@ -123,17 +117,9 @@ export class EnrollmentsService {
       (completedCount / totalLessons) * 100,
     );
 
-    // ===== ถ้าเรียนครบ =====
-    if (
-      enrollment.progress === 100 &&
-      enrollment.status !== 'completed'
-    ) {
+    // ถ้าเรียนครบ → เปลี่ยนสถานะเป็น completed
+    if (enrollment.progress === 100) {
       enrollment.status = 'completed';
-
-      await this.certificatesService.createCertificate(
-        enrollment.user.toString(),
-        (course as any)._id.toString(),
-      );
     }
 
     await enrollment.save();
@@ -186,11 +172,6 @@ export class EnrollmentsService {
 
     if (status === 'completed') {
       enrollment.progress = 100;
-
-      await this.certificatesService.createCertificate(
-        enrollment.user.toString(),
-        enrollment.course.toString(),
-      );
     }
 
     return enrollment.save();
