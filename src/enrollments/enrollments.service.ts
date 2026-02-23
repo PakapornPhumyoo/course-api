@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -9,7 +10,10 @@ import {
   Enrollment,
   EnrollmentDocument,
 } from './schemas/enrollment.schema';
-import { Course, CourseDocument } from '../courses/schemas/course.schema';
+import {
+  Course,
+  CourseDocument,
+} from '../courses/schemas/course.schema';
 import { CertificatesService } from '../certificates/certificates.service';
 
 @Injectable()
@@ -51,20 +55,26 @@ export class EnrollmentsService {
   }
 
   // ==============================
-  // COMPLETE LESSON (🔥 ใหม่)
+  // COMPLETE LESSON (ใช้ enrollmentId)
   // ==============================
-  async completeLesson(
-    userId: string,
-    courseId: string,
+  async updateProgress(
+    enrollmentId: string,
     lessonId: string,
+    userId: string,
   ) {
-    const enrollment = await this.enrollmentModel.findOne({
-      user: userId,
-      course: courseId,
-    });
+    // 👇 populate แบบ generic เพื่อให้ TS รู้ว่าเป็น Course
+    const enrollment = await this.enrollmentModel
+      .findById(enrollmentId)
+      .populate<{ course: Course }>('course');
 
     if (!enrollment) {
       throw new NotFoundException('Enrollment not found');
+    }
+
+    if (enrollment.user.toString() !== userId) {
+      throw new ForbiddenException(
+        'You are not owner of this enrollment',
+      );
     }
 
     if (
@@ -76,18 +86,24 @@ export class EnrollmentsService {
       );
     }
 
-    // ❌ กันกดซ้ำ
+    // กัน undefined
+    if (!enrollment.completedLessons) {
+      enrollment.completedLessons = [];
+    }
+
+    // กันกดซ้ำ
     if (enrollment.completedLessons.includes(lessonId)) {
       throw new BadRequestException(
         'Lesson already completed',
       );
     }
 
-    // หา course
-    const course = await this.courseModel.findById(courseId);
+    const course = enrollment.course;
 
-    if (!course) {
-      throw new NotFoundException('Course not found');
+    if (!course || !course.lessons) {
+      throw new BadRequestException(
+        'Course lessons not found',
+      );
     }
 
     if (!course.lessons.includes(lessonId)) {
@@ -99,7 +115,7 @@ export class EnrollmentsService {
     // เพิ่ม lesson
     enrollment.completedLessons.push(lessonId);
 
-    // คำนวณ progress
+    // ===== คำนวณ progress =====
     const totalLessons = course.lessons.length;
     const completedCount = enrollment.completedLessons.length;
 
@@ -107,7 +123,7 @@ export class EnrollmentsService {
       (completedCount / totalLessons) * 100,
     );
 
-    // ถ้าครบ 100%
+    // ===== ถ้าเรียนครบ =====
     if (
       enrollment.progress === 100 &&
       enrollment.status !== 'completed'
@@ -116,11 +132,18 @@ export class EnrollmentsService {
 
       await this.certificatesService.createCertificate(
         enrollment.user.toString(),
-        enrollment.course.toString(),
+        (course as any)._id.toString(),
       );
     }
 
-    return enrollment.save();
+    await enrollment.save();
+
+    return {
+      message: 'Lesson marked as completed',
+      progress: enrollment.progress,
+      completedLessons: enrollment.completedLessons,
+      status: enrollment.status,
+    };
   }
 
   // ==============================

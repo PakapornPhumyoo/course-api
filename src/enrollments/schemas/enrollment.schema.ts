@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { Course } from '../../courses/schemas/course.schema';
 
 export type EnrollmentDocument = Enrollment & Document;
 
@@ -12,20 +13,22 @@ export class Enrollment {
   })
   user: Types.ObjectId;
 
+  // 👇 แก้ตรงนี้ให้รองรับ populate
   @Prop({
     type: Types.ObjectId,
     ref: 'Course',
     required: true,
   })
-  course: Types.ObjectId;
+  course: Types.ObjectId | Course;
 
   @Prop({ default: 'pending' })
   status: string;
 
+  // 👇 progress เริ่มต้น 0
   @Prop({ default: 0 })
   progress: number;
 
-  // ✅ เพิ่มอันนี้
+  // 👇 ต้องมี default: [] กัน undefined
   @Prop({ type: [String], default: [] })
   completedLessons: string[];
 }

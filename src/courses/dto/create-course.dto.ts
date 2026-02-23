@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsNumber, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsNotEmpty,
+  IsMongoId,
+  IsArray,
+  ArrayNotEmpty,
+} from 'class-validator';
 
 export class CreateCourseDto {
   @IsString()
@@ -6,9 +13,16 @@ export class CreateCourseDto {
   title: string;
 
   @IsString()
+  @IsNotEmpty()
   description: string;
 
   @IsNumber()
-  @Min(0)
   price: number;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  instructor: string;
+
+  @IsArray()
+  lessons: string[];
 }

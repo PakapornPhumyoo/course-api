@@ -20,7 +20,7 @@ import { UpdateProgressDto } from './dto/update-progress.dto';
 export class EnrollmentsController {
   constructor(
     private readonly enrollmentsService: EnrollmentsService,
-  ) {}
+  ) { }
 
   /**
    * สมัครเรียน (User ต้อง Login)
@@ -101,6 +101,18 @@ export class EnrollmentsController {
    * Admin อัปเดต progress
    * ถ้า progress = 100 ระบบจะสร้าง certificate อัตโนมัติ
    */
-  
-  
+
+  @Patch(':enrollmentId/lessons/:lessonId/complete')
+  @UseGuards(JwtAuthGuard)
+  updateProgress(
+    @Param('enrollmentId') enrollmentId: string,
+    @Param('lessonId') lessonId: string,
+    @Req() req,
+  ) {
+    return this.enrollmentsService.updateProgress(
+      enrollmentId,
+      lessonId,
+      req.user.userId,
+    );
+  }
 }
