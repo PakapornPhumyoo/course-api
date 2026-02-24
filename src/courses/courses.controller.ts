@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Param,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -14,7 +15,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('courses')
 export class CoursesController {
-  constructor(private coursesService: CoursesService) {}
+  constructor(private coursesService: CoursesService) { }
 
   /**
    * ==========================
@@ -52,6 +53,23 @@ export class CoursesController {
     return {
       message: 'Courses fetched successfully',
       data: courses,
+    };
+  }
+
+  /**
+ * ==========================
+ * GET COURSE BY ID
+ * ==========================
+ * ใช้ดูรายละเอียดคอร์สรายตัว
+ * ไม่ต้อง login
+ */
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const course = await this.coursesService.findOne(id);
+
+    return {
+      message: 'Course fetched successfully',
+      data: course,
     };
   }
 }

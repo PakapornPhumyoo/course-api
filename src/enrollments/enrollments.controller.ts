@@ -13,8 +13,7 @@ import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { UpdateStatusDto } from './dto/update-status.dto';
-import { UpdateProgressDto } from './dto/update-progress.dto';
+
 
 @Controller('enrollments')
 export class EnrollmentsController {
@@ -25,7 +24,7 @@ export class EnrollmentsController {
   /**
    * สมัครเรียน (User ต้อง Login)
    */
-
+  
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(
@@ -73,28 +72,6 @@ export class EnrollmentsController {
     return {
       message: 'All enrollments fetched successfully',
       data: enrollments,
-    };
-  }
-
-  /**
-   * Admin เปลี่ยนสถานะ enrollment
-   */
-  @Patch(':id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  async updateStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateStatusDto,
-  ) {
-    const result =
-      await this.enrollmentsService.updateStatus(
-        id,
-        dto.status,
-      );
-
-    return {
-      message: 'Enrollment status updated successfully',
-      data: result,
     };
   }
 

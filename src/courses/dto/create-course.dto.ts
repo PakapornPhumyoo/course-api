@@ -16,9 +16,6 @@ export class CreateCourseDto {
   @IsNotEmpty()
   description: string;
 
-  @IsNumber()
-  price: number;
-
   @IsMongoId()
   @IsNotEmpty()
   instructor: string;

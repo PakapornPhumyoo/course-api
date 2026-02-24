@@ -21,7 +21,7 @@ export class Enrollment {
   })
   course: Types.ObjectId | Course;
 
-  @Prop({ default: 'pending' })
+  @Prop({ default: 'in-progress' })
   status: string;
 
   // 👇 progress เริ่มต้น 0

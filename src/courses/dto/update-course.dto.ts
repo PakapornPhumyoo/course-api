@@ -9,8 +9,4 @@ export class UpdateCourseDto {
   @IsString()
   description?: string;
 
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  price?: number;
 }

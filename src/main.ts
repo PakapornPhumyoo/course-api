@@ -8,16 +8,19 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ✅ Global Validation
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,               // ตัด field ที่ไม่อยู่ใน DTO ทิ้ง
-      forbidNonWhitelisted: true,    // ถ้ามี field แปลก → error 400
-      transform: true,               // แปลง type อัตโนมัติ (สำคัญมาก)
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
 
-  // ✅ Global Response Format
   app.useGlobalInterceptors(
     new ResponseInterceptor(),
   );
@@ -25,7 +28,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const config = app.get(ConfigService);
-  const port = config.get<number>('PORT') || 3000;
+  const port = config.get<number>('PORT') || 5000;
 
   await app.listen(port);
 }

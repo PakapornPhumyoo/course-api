@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
-import { Document } from 'mongoose';
+import { Types, Document } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Course {
@@ -9,9 +8,6 @@ export class Course {
 
   @Prop()
   description: string;
-
-  @Prop({ required: true })
-  price: number;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   instructor: Types.ObjectId;
@@ -22,4 +18,5 @@ export class Course {
 
 export const CourseSchema =
   SchemaFactory.createForClass(Course);
+
 export type CourseDocument = Course & Document;

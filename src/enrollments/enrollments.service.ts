@@ -26,7 +26,7 @@ export class EnrollmentsService {
   ) {}
 
   // ==============================
-  // CREATE ENROLLMENT
+  // CREATE ENROLLMENT (เรียนฟรี เข้าเรียนได้ทันที)
   // ==============================
   async create(userId: string, courseId: string) {
     const existingEnrollment = await this.enrollmentModel.findOne({
@@ -43,7 +43,7 @@ export class EnrollmentsService {
     const enrollment = new this.enrollmentModel({
       user: userId,
       course: courseId,
-      status: 'pending',
+      status: 'in-progress',
       progress: 0,
       completedLessons: [],
     });
@@ -70,15 +70,6 @@ export class EnrollmentsService {
     if (enrollment.user.toString() !== userId) {
       throw new ForbiddenException(
         'You are not owner of this enrollment',
-      );
-    }
-
-    if (
-      enrollment.status !== 'approved' &&
-      enrollment.status !== 'completed'
-    ) {
-      throw new BadRequestException(
-        'Enrollment not approved',
       );
     }
 
@@ -117,9 +108,11 @@ export class EnrollmentsService {
       (completedCount / totalLessons) * 100,
     );
 
-    // ถ้าเรียนครบ → เปลี่ยนสถานะเป็น completed
+    // ถ้าเรียนครบ → เปลี่ยนสถานะ
     if (enrollment.progress === 100) {
       enrollment.status = 'completed';
+    } else {
+      enrollment.status = 'in-progress';
     }
 
     await enrollment.save();
@@ -143,7 +136,7 @@ export class EnrollmentsService {
   }
 
   // ==============================
-  // GET ALL ENROLLMENTS (Admin)
+  // GET ALL ENROLLMENTS (Admin ดูสถิติได้เฉย ๆ)
   // ==============================
   async findAll() {
     return this.enrollmentModel
@@ -151,29 +144,5 @@ export class EnrollmentsService {
       .populate('user')
       .populate('course')
       .exec();
-  }
-
-  // ==============================
-  // UPDATE STATUS (Admin)
-  // ==============================
-  async updateStatus(id: string, status: string) {
-    const enrollment = await this.enrollmentModel.findById(id);
-
-    if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
-    }
-
-    enrollment.status = status;
-
-    if (status === 'pending' || status === 'rejected') {
-      enrollment.progress = 0;
-      enrollment.completedLessons = [];
-    }
-
-    if (status === 'completed') {
-      enrollment.progress = 100;
-    }
-
-    return enrollment.save();
   }
 }
