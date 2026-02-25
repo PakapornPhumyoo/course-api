@@ -14,67 +14,51 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 
+@ApiTags('Enrollments')
+@ApiBearerAuth('access-token')
 @Controller('enrollments')
 export class EnrollmentsController {
-  constructor(
-    private readonly enrollmentsService: EnrollmentsService,
-  ) { }
-
+  constructor(private readonly enrollmentsService: EnrollmentsService) {}
   /**
    * สมัครเรียน (User ต้อง Login)
    */
-  
   @Post()
   @UseGuards(JwtAuthGuard)
-  async create(
-    @Body() dto: CreateEnrollmentDto,
-    @Req() req: any,
-  ) {
+  @ApiOperation({ summary: 'สมัครเรียน course (ต้อง login)' })
+  @ApiBody({ type: CreateEnrollmentDto })
+  async create(@Body() dto: CreateEnrollmentDto, @Req() req: any) {
     const enrollment = await this.enrollmentsService.create(
       req.user.userId,
       dto.courseId,
     );
-
-    return {
-      message: 'Enrollment created successfully',
-      data: enrollment,
-    };
+    return { message: 'Enrollment created successfully', data: enrollment };
   }
-
   /**
    * ดูรายการสมัครของตัวเอง
    */
   @Get('my')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'แสดง enrollments ของ user ปัจจุบัน (ต้อง login)' })
   async findMy(@Req() req: any) {
-    const enrollments =
-      await this.enrollmentsService.findMyEnrollments(
-        req.user.userId,
-      );
-
-    return {
-      message: 'My enrollments fetched successfully',
-      data: enrollments,
-    };
+    const enrollments = await this.enrollmentsService.findMyEnrollments(
+      req.user.userId,
+    );
+    return { message: 'My enrollments fetched successfully', data: enrollments };
   }
-
-  /**
+ /**
    * Admin ดูทั้งหมด
    */
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiOperation({ summary: 'แสดง enrollments ทั้งหมด (admin only)' })
   async findAll() {
-    const enrollments =
-      await this.enrollmentsService.findAll();
-
-    return {
-      message: 'All enrollments fetched successfully',
-      data: enrollments,
-    };
+    const enrollments = await this.enrollmentsService.findAll();
+    return { message: 'All enrollments fetched successfully', data: enrollments };
   }
-
+  
   /**
    * User ทำเครื่องหมายว่าเรียนบทเรียนนี้แล้ว
    * จะอัพเดต progress และ status ของ enrollment
@@ -88,10 +72,11 @@ export class EnrollmentsController {
 
   @Patch(':enrollmentId/lessons/:lessonId/complete')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'ทำเครื่องหมาย lesson ว่าเสร็จแล้ว + อัปเดต progress (ต้อง login)' })
   updateProgress(
     @Param('enrollmentId') enrollmentId: string,
     @Param('lessonId') lessonId: string,
-    @Req() req,
+    @Req() req: any,
   ) {
     return this.enrollmentsService.updateProgress(
       enrollmentId,

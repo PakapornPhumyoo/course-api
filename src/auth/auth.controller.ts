@@ -12,75 +12,73 @@ import { SigninDto } from './dto/signin.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshDto } from './dto/refresh.dto';
 
+import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
-
+  constructor(private readonly authService: AuthService) { }
   /**
-   * ==========================
-   * SIGNUP
-   * ==========================
-   * ใช้สำหรับสมัครสมาชิกใหม่
-   * รับข้อมูลจาก SignupDto
-   * เรียก service เพื่อสร้าง user และ hash password
-   */
+    * ==========================
+    * SIGNUP
+    * ==========================
+    * ใช้สำหรับสมัครสมาชิกใหม่
+    * รับข้อมูลจาก SignupDto
+    * เรียก service เพื่อสร้าง user และ hash password
+    */
   @Post('signup')
+  @ApiOperation({ summary: 'Signup (สมัครสมาชิก)' })
+  @ApiBody({ type: SignupDto })
   async signup(@Body() dto: SignupDto) {
     const user = await this.authService.signup(dto);
-
-    return {
-      message: 'Signup successful',
-      data: user,
-    };
+    return { message: 'Signup successful', data: user };
   }
 
   /**
-   * ==========================
-   * SIGNIN
-   * ==========================
-   * ใช้สำหรับเข้าสู่ระบบ
-   * คืนค่า Access Token และ Refresh Token
-   */
+    * ==========================
+    * SIGNIN
+    * ==========================
+    * ใช้สำหรับเข้าสู่ระบบ
+    * คืนค่า Access Token และ Refresh Token
+    */
+
   @Post('signin')
+  @ApiOperation({ summary: 'Signin (เข้าสู่ระบบ) คืน access/refresh token' })
+  @ApiBody({ type: SigninDto })
   async signin(@Body() dto: SigninDto) {
     const tokens = await this.authService.signin(dto);
-
-    return {
-      message: 'Signin successful',
-      data: tokens,
-    };
+    return { message: 'Signin successful', data: tokens };
   }
 
   /**
-   * ==========================
-   * REFRESH TOKEN
-   * ==========================
-   * ใช้สำหรับสร้าง Access Token ใหม่
-   * โดยใช้ Refresh Token
-   */
+    * ==========================
+    * REFRESH TOKEN
+    * ==========================
+    * ใช้สำหรับสร้าง Access Token ใหม่
+    * โดยใช้ Refresh Token
+    */
+
   @Post('refresh')
+  @ApiOperation({ summary: 'Refresh token (ออก access token ใหม่)' })
+  @ApiBody({ type: RefreshDto })
   async refresh(@Body() dto: RefreshDto) {
     const tokens = await this.authService.refresh(dto.refreshToken);
-
-    return {
-      message: 'Token refreshed successfully',
-      data: tokens,
-    };
+    return { message: 'Token refreshed successfully', data: tokens };
   }
 
   /**
-   * ==========================
-   * PROFILE
-   * ==========================
-   * ใช้ JwtAuthGuard ป้องกัน
-   * ดึงข้อมูล user จาก req.user (decoded JWT)
-   */
+    * ==========================
+    * PROFILE
+    * ==========================
+    * ใช้ JwtAuthGuard ป้องกัน
+    * ดึงข้อมูล user จาก req.user (decoded JWT)
+    */
+   
   @Get('profile')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get profile (ต้อง login)' })
   getProfile(@Req() req: any) {
-    return {
-      message: 'Profile fetched successfully',
-      data: req.user,
-    };
+    return { message: 'Profile fetched successfully', data: req.user };
   }
 }

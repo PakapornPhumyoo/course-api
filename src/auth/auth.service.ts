@@ -29,7 +29,7 @@ export class AuthService {
       throw new BadRequestException('Email already exists');
     }
 
-    const hash = await bcrypt.hash(dto.password, 10);
+    const hash = await bcrypt.hash(dto.password, 10); // 🔥 hash password ด้วย bcrypt
 
     const user = await this.usersService.create(
       dto.name,
