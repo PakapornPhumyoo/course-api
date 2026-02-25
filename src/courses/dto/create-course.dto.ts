@@ -1,11 +1,19 @@
-import {
-  IsString,
-  IsNumber,
-  IsNotEmpty,
-  IsMongoId,
-  IsArray,
-  ArrayNotEmpty,
-} from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class CreateLessonDto {
+  @IsString()
+  @IsNotEmpty()
+  slug: string;
+
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @IsString()
+  @IsOptional()
+  content?: string;
+}
 
 export class CreateCourseDto {
   @IsString()
@@ -13,13 +21,12 @@ export class CreateCourseDto {
   title: string;
 
   @IsString()
-  @IsNotEmpty()
-  description: string;
-
-  @IsMongoId()
-  @IsNotEmpty()
-  instructor: string;
+  @IsOptional()
+  description?: string;
 
   @IsArray()
-  lessons: string[];
+  @ValidateNested({ each: true })
+  @Type(() => CreateLessonDto)
+  @IsOptional()
+  lessons?: CreateLessonDto[];
 }

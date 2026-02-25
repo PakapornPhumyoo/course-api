@@ -6,14 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import {
-  Enrollment,
-  EnrollmentDocument,
-} from './schemas/enrollment.schema';
-import {
-  Course,
-  CourseDocument,
-} from '../courses/schemas/course.schema';
+
+import { Enrollment, EnrollmentDocument } from './schemas/enrollment.schema';
+import { Course, CourseDocument } from '../courses/schemas/course.schema';
+import { hasLesson, normalizeLessons } from '../courses/utils/normalize-lessons';
 
 @Injectable()
 export class EnrollmentsService {
@@ -35,9 +31,7 @@ export class EnrollmentsService {
     });
 
     if (existingEnrollment) {
-      throw new BadRequestException(
-        'You already enrolled in this course',
-      );
+      throw new BadRequestException('You already enrolled in this course');
     }
 
     const enrollment = new this.enrollmentModel({
@@ -54,11 +48,7 @@ export class EnrollmentsService {
   // ==============================
   // COMPLETE LESSON
   // ==============================
-  async updateProgress(
-    enrollmentId: string,
-    lessonId: string,
-    userId: string,
-  ) {
+  async updateProgress(enrollmentId: string, lessonId: string, userId: string) {
     const enrollment = await this.enrollmentModel
       .findById(enrollmentId)
       .populate<{ course: Course }>('course');
@@ -68,51 +58,59 @@ export class EnrollmentsService {
     }
 
     if (enrollment.user.toString() !== userId) {
-      throw new ForbiddenException(
-        'You are not owner of this enrollment',
-      );
+      throw new ForbiddenException('You are not owner of this enrollment');
     }
 
     if (!enrollment.completedLessons) {
       enrollment.completedLessons = [];
     }
 
-    if (enrollment.completedLessons.includes(lessonId)) {
-      throw new BadRequestException(
-        'Lesson already completed',
-      );
+    // ✅ กัน lessonId แปลก ๆ
+    const safeLessonId = decodeURIComponent(String(lessonId)).trim();
+    if (!safeLessonId) {
+      throw new BadRequestException('Lesson id is required');
+    }
+
+    if (enrollment.completedLessons.includes(safeLessonId)) {
+      throw new BadRequestException('Lesson already completed');
     }
 
     const course = enrollment.course;
 
-    if (!course || !course.lessons) {
-      throw new BadRequestException(
-        'Course lessons not found',
-      );
+    if (!course) {
+      throw new BadRequestException('Course not found in enrollment');
     }
 
-    if (!course.lessons.includes(lessonId)) {
-      throw new BadRequestException(
-        'Invalid lesson for this course',
-      );
+    if (!course.lessons) {
+      throw new BadRequestException('Course lessons not found');
     }
 
-    // เพิ่ม lesson
-    enrollment.completedLessons.push(lessonId);
+    // ✅ เช็คได้ทั้ง lessons แบบ string[] และ object[]
+    if (!hasLesson(course.lessons as any[], safeLessonId)) {
+      throw new BadRequestException('Invalid lesson for this course');
+    }
 
-    // คำนวณ progress
-    const totalLessons = course.lessons.length;
-    const completedCount = enrollment.completedLessons.length;
+    // ✅ เพิ่ม lesson ที่ทำเสร็จ
+    enrollment.completedLessons.push(safeLessonId);
 
-    enrollment.progress = Math.round(
-      (completedCount / totalLessons) * 100,
-    );
+    // ✅ ใช้ lessons ที่ normalize แล้ว คิด total ให้ถูก
+    const normalized = normalizeLessons(course.lessons as any[]);
+    const totalLessons = normalized.length;
 
-    // ถ้าเรียนครบ → เปลี่ยนสถานะ
-    if (enrollment.progress === 100) {
-      enrollment.status = 'completed';
-    } else {
+    // ✅ กันหาร 0 และคุม progress
+    if (totalLessons <= 0) {
+      enrollment.progress = 0;
       enrollment.status = 'in-progress';
+    } else {
+      const completedCount = enrollment.completedLessons.length;
+
+      enrollment.progress = Math.min(
+        100,
+        Math.max(0, Math.round((completedCount / totalLessons) * 100)),
+      );
+
+      enrollment.status =
+        enrollment.progress === 100 ? 'completed' : 'in-progress';
     }
 
     await enrollment.save();
@@ -136,7 +134,7 @@ export class EnrollmentsService {
   }
 
   // ==============================
-  // GET ALL ENROLLMENTS (Admin ดูสถิติได้เฉย ๆ)
+  // GET ALL ENROLLMENTS (Admin)
   // ==============================
   async findAll() {
     return this.enrollmentModel
